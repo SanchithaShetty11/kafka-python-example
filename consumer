@@ -1,0 +1,13 @@
+from kafka import KafkaConsumer
+
+def main():
+    consumer = KafkaConsumer(bootstrap_servers='localhost:9092', auto_offset_reset='latest')
+    consumer.subscribe(['kafkapipeline'])
+    
+    for v in consumer:
+    	print "Rec"
+    	print v.key
+        value = v.value
+        print value
+
+main()

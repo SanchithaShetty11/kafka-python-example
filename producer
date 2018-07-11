@@ -1,0 +1,67 @@
+from kafka import KafkaProducer
+from twisted.internet import epollreactor
+
+epollreactor.install()
+
+import sys
+from email.mime.text import MIMEText
+
+from zope.interface import implements
+from twisted.internet import reactor , interfaces , defer
+from functools import partial
+
+from twisted.python import log
+from twisted.mail.smtp import sendmail
+from txmongo import lazyMongoConnectionPool
+from bson import objectid
+
+from configloader import ConfigLoader
+
+import twisted.web.client as webclient
+
+import datetime
+from time import strptime
+import uuid
+import json
+import hashlib
+import urllib
+import unicodedata
+import basichttpsite
+import apiutils
+import testapidb
+
+import random
+import string
+
+class sample(basichttpsite.BasicHTTPSite):
+	def __init__(self):
+		basichttpsite.BasicHTTPSite.__init__(self,"Auth")
+		basichttpsite.BasicHTTPSite.initResources(self)
+		self.apiutils = apiutils.APIUtils()
+		self.checkInputErrors = self.apiutils.checkInputErrors
+		self.responses["/getdata"] = partial(self.getData)
+
+		self.cType["json"] = "application/json"
+
+	# @defer.inlineCallbacks
+	def getData(self,client):
+		try:
+			self.checkInputErrors(client.dataDict, {"val":1})
+		except (apiutils.APIInputError) as errors :
+			self.serveResource(str(errors),"json",client)
+			return
+
+		producer = KafkaProducer(bootstrap_servers='localhost:9092')
+		for i in range(20):
+		    producer.send('kafkapipeline', key=str.encode('key_{}'.format(i)), value=client.dataDict["val"])
+		    print str.encode('key_{}'.format(i))
+		    print client.dataDict["val"]
+		result={"result":"Success"}
+		self.serveResource(json.dumps(result),"json",client)
+
+
+d=sample()
+
+reactor.listenTCP(8068,d)
+
+reactor.run()
